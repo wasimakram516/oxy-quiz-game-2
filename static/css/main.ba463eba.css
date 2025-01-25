@@ -1,0 +1,2 @@
+.shake{animation:shake .5s}@keyframes shake{0%,to{transform:translateX(0)}25%,75%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
+/*# sourceMappingURL=main.ba463eba.css.map*/

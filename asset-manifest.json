@@ -1,0 +1,21 @@
+{
+  "files": {
+    "main.css": "/oxy-quiz-game-2/static/css/main.ba463eba.css",
+    "main.js": "/oxy-quiz-game-2/static/js/main.76d96bf7.js",
+    "static/js/453.e63cc56e.chunk.js": "/oxy-quiz-game-2/static/js/453.e63cc56e.chunk.js",
+    "static/media/correct.wav": "/oxy-quiz-game-2/static/media/correct.d1089aa121189c44de7e.wav",
+    "static/media/wrong.wav": "/oxy-quiz-game-2/static/media/wrong.61d8264cf7e7047cf510.wav",
+    "static/media/celebrateLeaderboard.mp3": "/oxy-quiz-game-2/static/media/celebrateLeaderboard.0b4f36269ee8a90d50d9.mp3",
+    "static/media/Oxy-bg-start1.webp": "/oxy-quiz-game-2/static/media/Oxy-bg-start1.9b65e6663e96f7a9322d.webp",
+    "static/media/Background.webp": "/oxy-quiz-game-2/static/media/Background.1b87ccf58f1669281ba9.webp",
+    "static/media/oxy-logo-color.webp": "/oxy-quiz-game-2/static/media/oxy-logo-color.1ed7e3489a6680d24372.webp",
+    "index.html": "/oxy-quiz-game-2/index.html",
+    "main.ba463eba.css.map": "/oxy-quiz-game-2/static/css/main.ba463eba.css.map",
+    "main.76d96bf7.js.map": "/oxy-quiz-game-2/static/js/main.76d96bf7.js.map",
+    "453.e63cc56e.chunk.js.map": "/oxy-quiz-game-2/static/js/453.e63cc56e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.ba463eba.css",
+    "static/js/main.76d96bf7.js"
+  ]
+}
