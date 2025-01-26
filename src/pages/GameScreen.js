@@ -12,12 +12,101 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Box, Typography, Button } from "@mui/material";
 import { Favorite, ArrowCircleDown } from "@mui/icons-material";
+
+// Audio & Assets
 import celebrateSound from "../assets/celebrateLeaderboard.mp3";
 import correctSound from "../assets/correct.wav";
 import wrongSound from "../assets/wrong.wav";
 import oxyLogo from "../assets/oxy-logo-color.webp";
 import Background from "../assets/Background.webp";
 
+// ------------------------------
+// 1) The correct final sequence (8 items total):
+// ------------------------------
+const CORRECT_SEQUENCE = [
+  "Organizational goals",
+  "Department goals",
+  "Development focused area identifications",
+  "Individual Performance goals",
+  "Individual Development Plan (IDP)",
+  "Discussion with Direct supervisor/ Assessor",
+  "Learning Solution implementation and on going feedback",
+  "Performance rating and calibration and communication",
+];
+
+// We'll slice them into two parts:
+//    SCREEN 1 => indexes 0..3
+//    SCREEN 2 => indexes 4..7
+const PART_1 = CORRECT_SEQUENCE.slice(0, 4); // first 4
+const PART_2 = CORRECT_SEQUENCE.slice(4, 8); // last 4
+
+// ------------------------------
+// Utility to shuffle an array of objects
+// ------------------------------
+function shuffle(array) {
+  return array
+    .map((item) => ({ ...item, sort: Math.random() }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ sort, ...rest }) => rest);
+}
+
+// ------------------------------
+// 2) Draggable Component
+// ------------------------------
+function Draggable({ id, children, rotation = 0, margin = "0px", disabled }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id,
+    disabled, // respects the "disableDraggables" state
+  });
+
+  const style = {
+    transform: transform
+      ? `translate(${transform.x}px, ${transform.y}px) rotate(${rotation}deg)`
+      : `rotate(${rotation}deg)`,
+    padding: "20px",
+    backgroundColor: "#f0f0f0",
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    cursor: disabled ? "not-allowed" : "grab",
+    textAlign: "center",
+    margin: margin,
+    userSelect: "none", // prevent text selection
+  };
+
+  return (
+    <Box ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      {children}
+    </Box>
+  );
+}
+
+// ------------------------------
+// 3) Droppable Component
+// ------------------------------
+function Droppable({ id, children }) {
+  const { setNodeRef } = useDroppable({ id });
+
+  const style = {
+    padding: "40px",
+    backgroundColor: children ? "#d4edda" : "#e0e0e0",
+    border: "2px dashed #aaa",
+    borderRadius: "8px",
+    minHeight: "100px",
+    textAlign: "center",
+    position: "relative",
+    transition: "background-color 0.3s ease",
+  };
+
+  return (
+    <Box ref={setNodeRef} style={style} data-id={id}>
+      {children || "Drop Here"}
+    </Box>
+  );
+}
+
+// ------------------------------
+// 4) EndScreen Overlay
+// ------------------------------
 const EndScreen = ({ gameWon, resetGame }) => {
   // Confetti setup
   const confettiWidth = window.innerWidth;
@@ -106,102 +195,42 @@ const EndScreen = ({ gameWon, resetGame }) => {
   );
 };
 
-// 1) The correct final sequence (never changes)
-const CORRECT_SEQUENCE = [
-  "Organizational Goals & Development Focused Areas Identification",
-  "Performance Goals & IDP Discussion with Direct Manager & Assessors",
-  "Learning Solutions Implementation & Ongoing Feedback",
-  "Performance Rating Calibration & Communication",
-];
-
-/**
- * Utility to shuffle an array of objects
- */
-function shuffle(array) {
-  return array
-    .map((item) => ({ ...item, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(({ sort, ...rest }) => rest);
-}
-
-/**
- * 2) Draggable Component
- */
-function Draggable({ id, children, rotation = 0, margin = "0px", disabled }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id,
-    disabled, // respects the "disableDraggables" state
-  });
-
-  const style = {
-    transform: transform
-      ? `translate(${transform.x}px, ${transform.y}px) rotate(${rotation}deg)`
-      : `rotate(${rotation}deg)`,
-    padding: "20px",
-    backgroundColor: "#f0f0f0",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    cursor: disabled ? "not-allowed" : "grab",
-    textAlign: "center",
-    margin: margin,
-    userSelect: "none", // prevent text selection
-  };
-
-  return (
-    <Box ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      {children}
-    </Box>
-  );
-}
-
-/**
- * 3) Droppable Component
- */
-function Droppable({ id, children }) {
-  const { setNodeRef } = useDroppable({ id });
-
-  const style = {
-    padding: "40px",
-    backgroundColor: children ? "#d4edda" : "#e0e0e0",
-    border: "2px dashed #aaa",
-    borderRadius: "8px",
-    minHeight: "100px",
-    textAlign: "center",
-    position: "relative",
-    transition: "background-color 0.3s ease",
-  };
-
-  return (
-    <Box ref={setNodeRef} style={style} data-id={id}>
-      {children || "Drop Here"}
-    </Box>
-  );
-}
-
-/**
- * 4) Main Game Component
- */
+// ------------------------------
+// 5) Main Game Component
+// ------------------------------
 function GameScreen() {
   const navigate = useNavigate();
+
+  // Track which screen (1 or 2)
+  const [screen, setScreen] = useState(1);
 
   // A) Lives
   const [lives, setLives] = useState(3);
 
-  // B) Placed items (indexed by drop zone). Null if empty.
-  const [placedOptions, setPlacedOptions] = useState(Array(4).fill(null));
+  // B) Placed items (for all 8 slots). We'll only show relevant ones on each screen.
+  //    Index 0-3 => screen 1, Index 4-7 => screen 2
+  const [placedOptions, setPlacedOptions] = useState(Array(8).fill(null));
 
-  // C) Stable "shuffled" items that the user can drag from.
-  //    Each item has: { text, rotation, margin }
-  //    We only shuffle once when the component mounts.
-  const [shuffledItems] = useState(() => {
-    // Build array from correct sequence, but each with random angles/margin
-    const initial = CORRECT_SEQUENCE.map((txt) => ({
-      text: txt,
-      rotation: Math.random() * 30 - 15,
-      margin: `${Math.random() * 20}px`,
-    }));
-    return shuffle(initial);
-  });
+  // C) Two separate sets of shuffled items (one for each screen)
+  const [shuffledPart1] = useState(() =>
+    shuffle(
+      PART_1.map((txt) => ({
+        text: txt,
+        rotation: Math.random() * 30 - 15,
+        margin: `${Math.random() * 20}px`,
+      }))
+    )
+  );
+
+  const [shuffledPart2] = useState(() =>
+    shuffle(
+      PART_2.map((txt) => ({
+        text: txt,
+        rotation: Math.random() * 30 - 15,
+        margin: `${Math.random() * 20}px`,
+      }))
+    )
+  );
 
   // D) Overall game state
   const [gameOver, setGameOver] = useState(false);
@@ -236,72 +265,95 @@ function GameScreen() {
   }, [touchSensor, pointerSensor]);
 
   /**
-   * Function: Play audio and temporarily disable draggables
+   * Function: Play audio *without blocking* if we want UI updates to happen
+   * immediately (like showing the end screen).
    */
-  const playSound = async (sound) => {
+  const playSound = (sound) => {
     setDisableDraggables(true);
     const audio = new Audio(sound);
-    await new Promise((resolve) => {
-      audio.onended = () => {
-        setDisableDraggables(false);
-        resolve();
-      };
-      audio.play();
-    });
+    audio.onended = () => {
+      setDisableDraggables(false);
+    };
+    audio.play();
   };
 
   /**
    * G) onDragEnd logic
    */
-  const handleDragEnd = async ({ active, over }) => {
+  const handleDragEnd = ({ active, over }) => {
     if (!over || disableDraggables) return; // If no valid drop target or locked, do nothing
 
     const draggedText = active.id; // The text of the dragged item
-    const dropZoneIndex = parseInt(over.id, 10); // e.g. 0, 1, 2, 3
+
+    // The UI drop zones for each screen are labeled 0..3 visually,
+    // but the actual "global" index depends on which screen we are on.
+    // Screen 1 => global indices [0..3], Screen 2 => global indices [4..7]
+    const localDropZoneIndex = parseInt(over.id, 10); // 0..3 from the Box
+    const globalDropZoneIndex =
+      screen === 1 ? localDropZoneIndex : localDropZoneIndex + 4;
 
     // If that drop zone is already filled, ignore
-    if (placedOptions[dropZoneIndex] !== null) {
+    if (placedOptions[globalDropZoneIndex] !== null) {
       return;
     }
 
-    // 1) Enforce top-to-bottom rule without penalty:
-    // If user tries slot i>0 but slot (i-1) is incorrect or unfilled, just ignore the drop.
-    if (
-      dropZoneIndex > 0 &&
-      placedOptions[dropZoneIndex - 1] !== CORRECT_SEQUENCE[dropZoneIndex - 1]
-    ) {
-      // Just do nothing. Item will "snap back" automatically (no shake, no life loss).
-      return;
+    // The correct sub-sequence for the current screen
+    const currentSequence = screen === 1 ? PART_1 : PART_2;
+
+    // Enforce top-to-bottom rule: for local i>0, check local (i-1).
+    // Map local (i-1) => global
+    if (localDropZoneIndex > 0) {
+      const globalAboveIndex =
+        screen === 1 ? localDropZoneIndex - 1 : localDropZoneIndex - 1 + 4;
+      // If the above is not correct, do nothing
+      if (
+        placedOptions[globalAboveIndex] !==
+        CORRECT_SEQUENCE[globalAboveIndex]
+      ) {
+        return;
+      }
     }
 
-    // 2) Check if the dragged item is correct for this zone
-    if (draggedText === CORRECT_SEQUENCE[dropZoneIndex]) {
+    // Check if the dragged item is correct for this zone
+    const correctText = CORRECT_SEQUENCE[globalDropZoneIndex];
+    if (draggedText === correctText) {
       // CORRECT
       const newPlaced = [...placedOptions];
-      newPlaced[dropZoneIndex] = draggedText;
+      newPlaced[globalDropZoneIndex] = draggedText;
       setPlacedOptions(newPlaced);
 
-      // Check for complete win
-      const isComplete = newPlaced.every(
-        (opt, idx) => opt === CORRECT_SEQUENCE[idx]
-      );
-      if (isComplete) {
-        setGameWon(true);
-        await playSound(celebrateSound);
+      // Check if the user completed all 4 items of the current screen
+      const start = screen === 1 ? 0 : 4;
+      const end = screen === 1 ? 3 : 7; // inclusive
+      const isScreenComplete = newPlaced
+        .slice(start, end + 1)
+        .every((item, idx) => item === CORRECT_SEQUENCE[start + idx]);
+
+      if (isScreenComplete) {
+        if (screen === 1) {
+          // Done with screen 1 => show partial success sound, then move to screen 2
+          playSound(correctSound);
+          setScreen(2);
+        } else {
+          // Done with screen 2 => entire puzzle completed!
+          // Show end screen *now* and play sound in parallel:
+          setGameWon(true);
+          playSound(celebrateSound);
+        }
       } else {
-        // Just a correct partial placement
-        await playSound(correctSound);
+        // Correct partial placement
+        playSound(correctSound);
       }
     } else {
-      // 3) WRONG item for this zone => penalize
-      await handleWrongDrop(over.id);
+      // WRONG item => penalize
+      handleWrongDrop(over.id);
     }
   };
 
   /**
-   * If user drops a wrong item on a valid zone, show shake, reduce life, no reset of correct placements.
+   * If user drops a wrong item on a valid zone, show shake, reduce life.
    */
-  const handleWrongDrop = async (dropZoneId) => {
+  const handleWrongDrop = (dropZoneId) => {
     // Shake the drop zone
     const dropZoneElement = document.querySelector(`[data-id='${dropZoneId}']`);
     if (dropZoneElement) {
@@ -310,7 +362,7 @@ function GameScreen() {
     }
 
     // Play wrong sound
-    await playSound(wrongSound);
+    playSound(wrongSound);
 
     // Deduct life
     if (lives > 1) {
@@ -324,18 +376,17 @@ function GameScreen() {
    * Reset the game
    */
   const resetGame = () => {
+    setScreen(1);
     setLives(3);
     setGameOver(false);
     setGameWon(false);
-    setPlacedOptions(Array(4).fill(null));
-    // If you want a fresh shuffle each time, you can forcibly re-load or re-randomize,
-    // but if you want them in the same positions, just navigate away or refresh:
+    setPlacedOptions(Array(8).fill(null));
     navigate("/");
   };
 
   return (
     <DndContext sensors={[currentSensor]} onDragEnd={handleDragEnd}>
-      {/* OVERLAYS */}
+      {/* Overlays: End Screen if gameOver or gameWon */}
       {(gameOver || gameWon) && (
         <EndScreen gameWon={gameWon} resetGame={resetGame} />
       )}
@@ -408,7 +459,15 @@ function GameScreen() {
             </Box>
           </Box>
 
-          {/* Drop Zones in a column */}
+          {/* Title for each part */}
+          <Typography
+            variant="h4"
+            sx={{fontWeight: "bold" }}
+          >
+            Part {screen} of 2
+          </Typography>
+
+          {/* Drop Zones in a column (4 per screen) */}
           <Box
             sx={{
               flex: 1,
@@ -420,44 +479,53 @@ function GameScreen() {
               gap: "40px",
             }}
           >
-            {/* 4 drop zones with arrows in between */}
+            {/* We only render 4 drop zones per screen */}
             <Box display="flex" flexDirection="column" gap="40px">
-              {placedOptions.map((item, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    position: "relative",
-                    width: { xs: "300px", sm: "500px" },
-                  }}
-                >
-                  <Droppable id={`${index}`}>{item}</Droppable>
-                  {index < placedOptions.length - 1 && (
-                    <>
-                      <ArrowCircleDown
-                        sx={{
-                          fontSize: "3rem",
-                          color: "#007bff",
-                          position: "absolute",
-                          bottom: "-45px",
-                          left: "10%",
-                        }}
-                      />
-                      <ArrowCircleDown
-                        sx={{
-                          fontSize: "3rem",
-                          color: "#007bff",
-                          position: "absolute",
-                          bottom: "-45px",
-                          right: "10%",
-                        }}
-                      />
-                    </>
-                  )}
-                </Box>
-              ))}
+              {Array.from({ length: 4 }).map((_, localIndex) => {
+                const showArrow = localIndex < 3;
+                return (
+                  <Box
+                    key={localIndex}
+                    sx={{
+                      position: "relative",
+                      width: { xs: "300px", sm: "500px" },
+                    }}
+                  >
+                    <Droppable id={`${localIndex}`}>
+                      {
+                        placedOptions[
+                          screen === 1 ? localIndex : localIndex + 4
+                        ]
+                      }
+                    </Droppable>
+                    {showArrow && (
+                      <>
+                        <ArrowCircleDown
+                          sx={{
+                            fontSize: "3rem",
+                            color: "#007bff",
+                            position: "absolute",
+                            bottom: "-45px",
+                            left: "10%",
+                          }}
+                        />
+                        <ArrowCircleDown
+                          sx={{
+                            fontSize: "3rem",
+                            color: "#007bff",
+                            position: "absolute",
+                            bottom: "-45px",
+                            right: "10%",
+                          }}
+                        />
+                      </>
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
 
-            {/* Scattered Draggables (only those not yet placed) */}
+            {/* Scattered Draggables (only those not yet placed + relevant to current screen) */}
             <Box
               sx={{
                 display: "grid",
@@ -471,11 +539,8 @@ function GameScreen() {
                 marginTop: "20px",
               }}
             >
-              {/* Filter out items that are already placed */}
-              {shuffledItems
-                .filter(
-                  (item) => !placedOptions.includes(item.text) // if not placed, show it
-                )
+              {(screen === 1 ? shuffledPart1 : shuffledPart2)
+                .filter((item) => !placedOptions.includes(item.text))
                 .map(({ text, rotation, margin }) => (
                   <Draggable
                     key={text}
