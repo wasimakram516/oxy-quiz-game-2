@@ -83,7 +83,7 @@ function Draggable({ id, children, rotation = 0, margin = "0px", disabled }) {
 // ------------------------------
 // 3) Droppable Component
 // ------------------------------
-function Droppable({ id, children }) {
+function Droppable({ id, children, label }) {
   const { setNodeRef } = useDroppable({ id });
 
   const style = {
@@ -95,10 +95,22 @@ function Droppable({ id, children }) {
     textAlign: "center",
     position: "relative",
     transition: "background-color 0.3s ease",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
   };
 
   return (
     <Box ref={setNodeRef} style={style} data-id={id}>
+      <Typography
+        variant="body1"
+        sx={{
+          color: children ? "#000" : "#666",
+        }}
+      >
+        {label}
+      </Typography>
       {children || "Drop Here"}
     </Box>
   );
@@ -243,11 +255,11 @@ function GameScreen() {
   const pointerSensor = useSensor(PointerSensor);
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 250,
-      tolerance: 5,
+      delay: 0,       // no delay
+      tolerance: 0,   // optional: start dragging with no movement threshold
     },
     preventDefault: true,
-  });
+  });  
 
   // Decide which sensor to use (mouse or touch)
   const [currentSensor, setCurrentSensor] = useState(pointerSensor);
@@ -481,49 +493,49 @@ function GameScreen() {
           >
             {/* We only render 4 drop zones per screen */}
             <Box display="flex" flexDirection="column" gap="40px">
-              {Array.from({ length: 4 }).map((_, localIndex) => {
-                const showArrow = localIndex < 3;
-                return (
-                  <Box
-                    key={localIndex}
-                    sx={{
-                      position: "relative",
-                      width: { xs: "300px", sm: "500px" },
-                    }}
-                  >
-                    <Droppable id={`${localIndex}`}>
-                      {
-                        placedOptions[
-                          screen === 1 ? localIndex : localIndex + 4
-                        ]
-                      }
-                    </Droppable>
-                    {showArrow && (
-                      <>
-                        <ArrowCircleDown
-                          sx={{
-                            fontSize: "3rem",
-                            color: "#007bff",
-                            position: "absolute",
-                            bottom: "-45px",
-                            left: "10%",
-                          }}
-                        />
-                        <ArrowCircleDown
-                          sx={{
-                            fontSize: "3rem",
-                            color: "#007bff",
-                            position: "absolute",
-                            bottom: "-45px",
-                            right: "10%",
-                          }}
-                        />
-                      </>
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
+  {Array.from({ length: 4 }).map((_, localIndex) => {
+    const globalIndex =
+      screen === 1 ? localIndex + 1 : localIndex + 5; // Numbers 1-4 for Part 1, 5-8 for Part 2
+    const showArrow = localIndex < 3;
+
+    return (
+      <Box
+        key={localIndex}
+        sx={{
+          position: "relative",
+          width: { xs: "300px", sm: "500px" },
+        }}
+      >
+        <Droppable id={`${localIndex}`} label={globalIndex}>
+          {placedOptions[screen === 1 ? localIndex : localIndex + 4]}
+        </Droppable>
+        {showArrow && (
+          <>
+            <ArrowCircleDown
+              sx={{
+                fontSize: "3rem",
+                color: "#007bff",
+                position: "absolute",
+                bottom: "-45px",
+                left: "10%",
+              }}
+            />
+            <ArrowCircleDown
+              sx={{
+                fontSize: "3rem",
+                color: "#007bff",
+                position: "absolute",
+                bottom: "-45px",
+                right: "10%",
+              }}
+            />
+          </>
+        )}
+      </Box>
+    );
+  })}
+</Box>
+
 
             {/* Scattered Draggables (only those not yet placed + relevant to current screen) */}
             <Box
